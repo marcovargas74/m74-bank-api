@@ -10,6 +10,19 @@ const (
 	aConst = "ola"
 )*/
 
+// AccountsBank armazena os dados dos Cliente
+/*type AccountsBank interface {
+	GetBalanceCliente(nome string) int
+	SaveBalance(nome string)
+	GetTransations() Transfer
+	/*
+		ObterPontuacaoDeJogador(nome string) int
+		GravarVitoria(nome string)
+		ObterLiga() Liga
+	* /
+}
+*/
+
 /*TODO: refatorar para que a struct
   seja composta pela strucr login + client*/
 
