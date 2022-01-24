@@ -31,6 +31,24 @@ type ArmazenamentoJogador interface {
 
 type ServidorJogador struct {
 	Armazenamento ArmazenamentoJogador
+	//Roteador      *http.ServeMux
+	http.Handler
+}
+
+//NovoServidorJogador Cria Servidor
+func NovoServidorJogador(armazenamento ArmazenamentoJogador) *ServidorJogador {
+
+	s := new(ServidorJogador)
+	s.Armazenamento = armazenamento
+
+	roteador := http.NewServeMux()
+	roteador.Handle("/liga", http.HandlerFunc(s.manipulaLiga))
+	roteador.Handle("/jogadores/", http.HandlerFunc(s.manipulaJogadores))
+
+	s.Handler = roteador
+
+	return s
+
 }
 
 func (s *ServidorJogador) mostrarPontuacao(w http.ResponseWriter, jogador string) {
@@ -49,11 +67,13 @@ func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s *ServidorJogador) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *ServidorJogador) manipulaLiga(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *ServidorJogador) manipulaJogadores(w http.ResponseWriter, r *http.Request) {
 
 	jogador := r.URL.Path[len("/jogadores/"):]
-
-	fmt.Printf("URL in %v  MEthod%v\n", r.URL, r.Method)
 
 	switch r.Method {
 	case http.MethodPost:
@@ -61,8 +81,37 @@ func (s *ServidorJogador) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		s.mostrarPontuacao(w, jogador)
 	}
-
 }
+
+/*
+func (s *ServidorJogador) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	s.Roteador.ServeHTTP(w, r)
+	/*roteador := http.NewServeMux()
+
+	roteador.Handle("/liga", http.HandlerFunc(s.manipulaLiga))
+	roteador.Handle("/jogadores/", http.HandlerFunc(s.manipulaJogadores))*/
+
+/*fmt.Printf("URL in %v  MEthod%v\n", r.URL, r.Method)
+	roteador.Handle("/liga", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	roteador.Handle("/jogadores/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		jogador := r.URL.Path[len("/jogadores/"):]
+
+		switch r.Method {
+		case http.MethodPost:
+			s.registrarVitoria(w, jogador)
+		case http.MethodGet:
+			s.mostrarPontuacao(w, jogador)
+		}
+	}))* /
+
+	//roteador.ServeHTTP(w, r)
+}
+*/
 
 func DefaultEndpoint(w http.ResponseWriter, r *http.Request) {
 

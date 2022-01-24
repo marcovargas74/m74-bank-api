@@ -253,7 +253,7 @@ func TestGetsAccounts(t *testing.T) {
 		nil,
 	}
 
-	servidor := &ServidorJogador{&armazenamento}
+	servidor := NovoServidorJogador(&armazenamento)
 	for _, tt := range tests {
 
 		//	servidor := &ServidorJogador{&armazenamento}
@@ -303,7 +303,7 @@ func TestArmazenamentoVitorias(t *testing.T) {
 		map[string]int{},
 		nil,
 	}
-	servidor := &ServidorJogador{&armazenamento}
+	servidor := NovoServidorJogador(&armazenamento)
 
 	t.Run("registra vitorias na chamada ao método HTTP POST", func(t *testing.T) {
 		jogador := "Maria"
@@ -326,7 +326,7 @@ func TestArmazenamentoVitorias(t *testing.T) {
 
 func TestRegistrarVitoriasEBuscarEstasVitorias(t *testing.T) {
 	armazenamento := NovoArmazenamentoJogadorEmMemoria()
-	servidor := ServidorJogador{armazenamento}
+	servidor := NovoServidorJogador(armazenamento)
 	jogador := "Maria"
 
 	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
@@ -340,4 +340,21 @@ func TestRegistrarVitoriasEBuscarEstasVitorias(t *testing.T) {
 	//verificarCorpoRequisicao(t, resposta.Body.String(), "3")
 	assert.Equal(t, resposta.Body.String(), "3")
 
+}
+
+/*vTESTES LIGA
+ */
+
+func TestLiga(t *testing.T) {
+	armazenamento := EsbocoArmazenamentoJogador{}
+	servidor := NovoServidorJogador(&armazenamento)
+
+	t.Run("retorna 200 em /liga", func(t *testing.T) {
+		requisicao, _ := http.NewRequest(http.MethodGet, "/liga", nil)
+		resposta := httptest.NewRecorder()
+
+		servidor.ServeHTTP(resposta, requisicao)
+
+		assert.Equal(t, resposta.Code, http.StatusOK)
+	})
 }
