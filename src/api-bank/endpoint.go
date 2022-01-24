@@ -1,6 +1,7 @@
 package m74bankapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,10 +24,16 @@ func getPlayerPoints(name string) string {
 
 }
 
+type Jogador struct {
+	Nome     string
+	Vitorias int
+}
+
 //TIPO TRATADOR CRIASSE A INTERFACE A STRUCT E O INICIALISADOR DO SERVER
 type ArmazenamentoJogador interface {
 	ObterPontuacaoJogador(nome string) int
 	RegistrarVitoria(nome string)
+	ObterLiga() []Jogador
 }
 
 type ServidorJogador struct {
@@ -67,7 +74,20 @@ func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string
 	w.WriteHeader(http.StatusAccepted)
 }
 
+/*func (s *ServidorJogador) obterTabelaDaLiga() []Jogador {
+	return []Jogador{
+		{"Chris", 20},
+		{"Cleo", 32},
+		{"Tiest", 14},
+	}
+}*/
+
 func (s *ServidorJogador) manipulaLiga(w http.ResponseWriter, r *http.Request) {
+
+	//	json.NewEncoder(w).Encode(s.obterTabelaDaLiga())
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(s.Armazenamento.ObterLiga())
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -163,22 +183,38 @@ func HandleFuncions() {
 
 // INLCUIR EM UM OUTRO ARQUIVO DE PERSISTENCIA
 
-// NovoArmazenamentoJogadorEmMemoria cria um ArmazenamentoJogador vazio
-func NovoArmazenamentoJogadorEmMemoria() *ArmazenamentoJogadorEmMemoria {
-	return &ArmazenamentoJogadorEmMemoria{map[string]int{}}
+// NovoArmazenamentoJogadorNaMemoria cria um ArmazenamentoJogador vazio
+func NovoArmazenamentoJogadorNaMemoria() *ArmazenamentoJogadorNaMemoria {
+	return &ArmazenamentoJogadorNaMemoria{map[string]int{}, nil}
 }
 
 // ArmazenamentoJogadorEmMemoria armazena na memória os dados sobre os jogadores
-type ArmazenamentoJogadorEmMemoria struct {
+type ArmazenamentoJogadorNaMemoria struct {
 	armazenamento map[string]int
+	//registrosVitorias []string
+	liga []Jogador
 }
 
 // RegistrarVitoria irá registrar uma vitoria
-func (a *ArmazenamentoJogadorEmMemoria) RegistrarVitoria(nome string) {
+func (a *ArmazenamentoJogadorNaMemoria) RegistrarVitoria(nome string) {
 	a.armazenamento[nome]++
 }
 
 // ObterPontuacaoJogador obtém as pontuações para um jogador
-func (a *ArmazenamentoJogadorEmMemoria) ObterPontuacaoJogador(nome string) int {
+func (a *ArmazenamentoJogadorNaMemoria) ObterPontuacaoJogador(nome string) int {
 	return a.armazenamento[nome]
+}
+
+/*func (e *EsbocoArmazenamentoJogador) RegistrarVitoria(nome string) {
+	e.registrosVitorias = append(e.registrosVitorias, nome)
+}
+*/
+
+func (a *ArmazenamentoJogadorNaMemoria) ObterLiga() []Jogador {
+	var liga []Jogador
+	for nome, vitórias := range a.armazenamento {
+		liga = append(liga, Jogador{nome, vitórias})
+	}
+	return liga
+
 }

@@ -1,9 +1,12 @@
 package m74bankapi
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/magiconair/properties/assert"
@@ -214,6 +217,7 @@ func TestCallbackTransfer(t *testing.T) {
 type EsbocoArmazenamentoJogador struct {
 	pontuacoes        map[string]int
 	registrosVitorias []string
+	liga              []Jogador
 }
 
 func (e *EsbocoArmazenamentoJogador) ObterPontuacaoJogador(nome string) int {
@@ -223,6 +227,10 @@ func (e *EsbocoArmazenamentoJogador) ObterPontuacaoJogador(nome string) int {
 
 func (e *EsbocoArmazenamentoJogador) RegistrarVitoria(nome string) {
 	e.registrosVitorias = append(e.registrosVitorias, nome)
+}
+
+func (s *EsbocoArmazenamentoJogador) ObterLiga() []Jogador {
+	return s.liga
 }
 
 func TestGetsAccounts(t *testing.T) {
@@ -250,6 +258,7 @@ func TestGetsAccounts(t *testing.T) {
 			"Pedro": 10,
 			"":      0,
 		},
+		nil,
 		nil,
 	}
 
@@ -302,6 +311,7 @@ func TestArmazenamentoVitorias(t *testing.T) {
 	armazenamento := EsbocoArmazenamentoJogador{
 		map[string]int{},
 		nil,
+		nil,
 	}
 	servidor := NovoServidorJogador(&armazenamento)
 
@@ -325,36 +335,98 @@ func TestArmazenamentoVitorias(t *testing.T) {
 }
 
 func TestRegistrarVitoriasEBuscarEstasVitorias(t *testing.T) {
-	armazenamento := NovoArmazenamentoJogadorEmMemoria()
+	armazenamento := NovoArmazenamentoJogadorNaMemoria()
 	servidor := NovoServidorJogador(armazenamento)
-	jogador := "Maria"
+	jogador := "Pepper"
 
 	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
 	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
 	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
 
-	resposta := httptest.NewRecorder()
-	servidor.ServeHTTP(resposta, novaRequisicaoObterPontuacao(jogador))
+	t.Run("obter pontuação", func(t *testing.T) {
+		resposta := httptest.NewRecorder()
+		servidor.ServeHTTP(resposta, novaRequisicaoObterPontuacao(jogador))
 
-	assert.Equal(t, resposta.Code, http.StatusOK)
-	//verificarCorpoRequisicao(t, resposta.Body.String(), "3")
-	assert.Equal(t, resposta.Body.String(), "3")
+		assert.Equal(t, resposta.Code, http.StatusOK)
+		//verificarCorpoRequisicao(t, resposta.Body.String(), "3")
+		assert.Equal(t, resposta.Body.String(), "3")
+	})
+
+	t.Run("obter liga", func(t *testing.T) {
+		resposta := httptest.NewRecorder()
+		servidor.ServeHTTP(resposta, novaRequisicaoDeLiga())
+		//verificaStatus(t, resposta.Code, http.StatusOK)
+		assert.Equal(t, resposta.Code, http.StatusOK)
+		obtido := obterLigaDaResposta(t, resposta.Body)
+		esperado := []Jogador{
+			{"Pepper", 3},
+		}
+		verificaLiga(t, obtido, esperado)
+	})
 
 }
 
 /*vTESTES LIGA
  */
 
+func obterLigaDaResposta(t *testing.T, body io.Reader) (liga []Jogador) {
+	t.Helper()
+	err := json.NewDecoder(body).Decode(&liga)
+
+	if err != nil {
+		t.Fatalf("Não foi possível fazer parse da resposta do servidor '%s' no slice de Jogador, '%v'", body, err)
+	}
+
+	return
+}
+
+func verificaLiga(t *testing.T, obtido, esperado []Jogador) {
+	t.Helper()
+	if !reflect.DeepEqual(obtido, esperado) {
+		t.Errorf("obtido %v esperado %v", obtido, esperado)
+	}
+}
+
+func novaRequisicaoDeLiga() *http.Request {
+	req, _ := http.NewRequest(http.MethodGet, "/liga", nil)
+	return req
+}
+
+const tipoDoConteudoJSON = "application/json"
+
+func verificaTipoDoConteudo(t *testing.T, resposta *httptest.ResponseRecorder, esperado string) {
+	t.Helper()
+	if resposta.Result().Header.Get("content-type") != esperado {
+		t.Errorf("resposta não obteve content-type de %s, obtido %v", esperado, resposta.Result().Header)
+	}
+}
+
 func TestLiga(t *testing.T) {
-	armazenamento := EsbocoArmazenamentoJogador{}
+	ligaEsperada := []Jogador{
+		{"Cleo", 32},
+		{"Chris", 20},
+		{"Tiest", 14},
+	}
+
+	armazenamento := EsbocoArmazenamentoJogador{nil, nil, ligaEsperada}
 	servidor := NovoServidorJogador(&armazenamento)
 
 	t.Run("retorna 200 em /liga", func(t *testing.T) {
-		requisicao, _ := http.NewRequest(http.MethodGet, "/liga", nil)
+		requisicao := novaRequisicaoDeLiga()
 		resposta := httptest.NewRecorder()
 
 		servidor.ServeHTTP(resposta, requisicao)
 
+		verificaTipoDoConteudo(t, resposta, tipoDoConteudoJSON)
+		/*if resposta.Result().Header.Get("content-type") != "application/json" {
+			t.Errorf("resposta não tinha o tipo de conteúdo de application/json, obtido %v", resposta.Result().Header)
+		}*/
+
+		obtido := obterLigaDaResposta(t, resposta.Body)
 		assert.Equal(t, resposta.Code, http.StatusOK)
+
+		verificaLiga(t, obtido, ligaEsperada)
+
 	})
+
 }
