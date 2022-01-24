@@ -23,18 +23,45 @@ func getPlayerPoints(name string) string {
 
 }
 
-//ServidorJogador teste
-func ServidorJogador(w http.ResponseWriter, r *http.Request) {
+//TIPO TRATADOR CRIASSE A INTERFACE A STRUCT E O INICIALISADOR DO SERVER
+type ArmazenamentoJogador interface {
+	ObterPontuacaoJogador(nome string) int
+	RegistrarVitoria(nome string)
+}
 
-	if r.Method == http.MethodPost {
-		w.WriteHeader(http.StatusAccepted)
-		return
+type ServidorJogador struct {
+	Armazenamento ArmazenamentoJogador
+}
+
+func (s *ServidorJogador) mostrarPontuacao(w http.ResponseWriter, jogador string) {
+
+	pontuacao := s.Armazenamento.ObterPontuacaoJogador(jogador)
+
+	if pontuacao == 0 {
+		w.WriteHeader(http.StatusNotFound)
 	}
 
-	player := r.URL.Path[len("/jogadores/"):]
-	fmt.Println("entrada " + player)
-	w.WriteHeader(http.StatusBadRequest)
-	fmt.Fprint(w, getPlayerPoints(player))
+	fmt.Fprint(w, pontuacao)
+}
+
+func (s *ServidorJogador) registrarVitoria(w http.ResponseWriter, jogador string) {
+	s.Armazenamento.RegistrarVitoria(jogador)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *ServidorJogador) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	jogador := r.URL.Path[len("/jogadores/"):]
+
+	fmt.Printf("URL in %v  MEthod%v\n", r.URL, r.Method)
+
+	switch r.Method {
+	case http.MethodPost:
+		s.registrarVitoria(w, jogador)
+	case http.MethodGet:
+		s.mostrarPontuacao(w, jogador)
+	}
+
 }
 
 func DefaultEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -76,11 +103,33 @@ func StartAPI(modo string) {
 //HandleFuncions Inclui os endpoint
 func HandleFuncions() {
 	http.HandleFunc("/", DefaultEndpoint)
-	http.HandleFunc("/jogadores/Maria", ServidorJogador)
-	http.HandleFunc("/jogadores/Pedro", ServidorJogador)
+	//http.HandleFunc("/jogadores/Maria", ServidorJogador)
+	//http.HandleFunc("/jogadores/Pedro", ServidorJogador)
 
 	//*TODO endpoint usado no banc
 	http.HandleFunc("/accounts", callbackAccount)
 	http.HandleFunc("/login", callbackLogin)
 	http.HandleFunc("/transfers", callbackTransfer)
+}
+
+// INLCUIR EM UM OUTRO ARQUIVO DE PERSISTENCIA
+
+// NovoArmazenamentoJogadorEmMemoria cria um ArmazenamentoJogador vazio
+func NovoArmazenamentoJogadorEmMemoria() *ArmazenamentoJogadorEmMemoria {
+	return &ArmazenamentoJogadorEmMemoria{map[string]int{}}
+}
+
+// ArmazenamentoJogadorEmMemoria armazena na memória os dados sobre os jogadores
+type ArmazenamentoJogadorEmMemoria struct {
+	armazenamento map[string]int
+}
+
+// RegistrarVitoria irá registrar uma vitoria
+func (a *ArmazenamentoJogadorEmMemoria) RegistrarVitoria(nome string) {
+	a.armazenamento[nome]++
+}
+
+// ObterPontuacaoJogador obtém as pontuações para um jogador
+func (a *ArmazenamentoJogadorEmMemoria) ObterPontuacaoJogador(nome string) int {
+	return a.armazenamento[nome]
 }

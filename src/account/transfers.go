@@ -3,7 +3,6 @@ package account
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"sync"
 )
 
@@ -39,6 +38,7 @@ type SMap struct {
 	return m.data[k]
   }*/
 
+/*
 // Transation armazena uma coleção de Transition
 type Transation []Transfer
 
@@ -63,6 +63,7 @@ func NovaLiga(leitor io.Reader) (Liga, error) {
 
 	return liga, err
 }
+*/
 
 func transfer() {
 	fmt.Println("transfer")
@@ -80,7 +81,7 @@ type Transfer struct {
 }
 
 func structAndJSONTransfer() {
-	transfer1 := Transfer{"xyz", "abc", "def", 12.00, "17-01-2022"}
+	transfer1 := Transfer{ID: "xyz", AccountOriginID: "abc", AccountDestinationID: "def", Amount: 12.00, CreatedAt: "17-01-2022"}
 	transfJSON, _ := json.Marshal(transfer1)
 	fmt.Println(string(transfJSON))
 	//Convert Json To struct

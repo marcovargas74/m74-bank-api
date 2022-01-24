@@ -30,6 +30,7 @@ func checkResult(t *testing.T, result, wait string) {
 }
 
 */
+/*
 func TestServidorJogador(t *testing.T) {
 
 	tests := []struct {
@@ -58,10 +59,10 @@ func TestServidorJogador(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.give, func(t *testing.T) {
 
-			requisicao := newReqEndpoints("/jogadores", tt.inData)
+			//requisicao := newReqEndpoints("/jogadores", tt.inData)
 			resposta := httptest.NewRecorder()
 
-			ServidorJogador(resposta, requisicao)
+			//ServidorJogador(resposta, requisicao)
 
 			recebido := resposta.Body.String()
 			//esperado := "10"
@@ -73,7 +74,7 @@ func TestServidorJogador(t *testing.T) {
 
 	}
 
-}
+}*/
 
 /*
 	//*TODO endpoint usado no banc
@@ -206,5 +207,137 @@ func TestCallbackTransfer(t *testing.T) {
 		})
 
 	}
+
+}
+
+/*TESTES USADOS PARA ESTUDO*/
+type EsbocoArmazenamentoJogador struct {
+	pontuacoes        map[string]int
+	registrosVitorias []string
+}
+
+func (e *EsbocoArmazenamentoJogador) ObterPontuacaoJogador(nome string) int {
+	pontuacao := e.pontuacoes[nome]
+	return pontuacao
+}
+
+func (e *EsbocoArmazenamentoJogador) RegistrarVitoria(nome string) {
+	e.registrosVitorias = append(e.registrosVitorias, nome)
+}
+
+func TestGetsAccounts(t *testing.T) {
+	tests := []struct {
+		give      string
+		wantValue string
+		inData    string
+	}{
+		{
+			give:      "Testa o Endpoint Account com Name Maria",
+			wantValue: "20",
+			inData:    "Maria",
+		},
+		{
+			give:      "Testa o Endpoint Account com Name Pedro",
+			wantValue: "10",
+			inData:    "Pedro",
+		},
+	}
+
+	//Cria os Dados e incluir na memoria
+	armazenamento := EsbocoArmazenamentoJogador{
+		map[string]int{
+			"Maria": 20,
+			"Pedro": 10,
+			"":      0,
+		},
+		nil,
+	}
+
+	servidor := &ServidorJogador{&armazenamento}
+	for _, tt := range tests {
+
+		//	servidor := &ServidorJogador{&armazenamento}
+		t.Run(tt.give, func(t *testing.T) {
+
+			requisicao := newReqEndpoints("/jogadores", tt.inData)
+			resposta := httptest.NewRecorder()
+
+			//BankServer(resposta, requisicao)
+			servidor.ServeHTTP(resposta, requisicao)
+
+			recebido := resposta.Body.String()
+			fmt.Printf("dadod recebido %s\n\n", recebido)
+
+			assert.Equal(t, recebido, tt.wantValue)
+			assert.Equal(t, resposta.Code, http.StatusOK)
+
+		})
+
+	}
+
+	t.Run("retorna 404 para jogador não encontrado", func(t *testing.T) {
+		requisicao := newReqEndpoints("/jogadores", "Jorge")
+		resposta := httptest.NewRecorder()
+
+		servidor.ServeHTTP(resposta, requisicao)
+
+		recebido := resposta.Code
+		esperado := http.StatusNotFound
+		assert.Equal(t, recebido, esperado)
+	})
+
+}
+
+func novaRequisicaoRegistrarVitoriaPost(nome string) *http.Request {
+	requisicao, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/jogadores/%s", nome), nil)
+	return requisicao
+}
+
+func novaRequisicaoObterPontuacao(nome string) *http.Request {
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/jogadores/%s", nome), nil)
+	return req
+}
+
+func TestArmazenamentoVitorias(t *testing.T) {
+	armazenamento := EsbocoArmazenamentoJogador{
+		map[string]int{},
+		nil,
+	}
+	servidor := &ServidorJogador{&armazenamento}
+
+	t.Run("registra vitorias na chamada ao método HTTP POST", func(t *testing.T) {
+		jogador := "Maria"
+
+		requisicao := novaRequisicaoRegistrarVitoriaPost(jogador)
+		resposta := httptest.NewRecorder()
+
+		servidor.ServeHTTP(resposta, requisicao)
+
+		assert.Equal(t, resposta.Code, http.StatusAccepted)
+		if len(armazenamento.registrosVitorias) != 1 {
+			t.Errorf("verifiquei %d chamadas a RegistrarVitoria, esperava %d", len(armazenamento.registrosVitorias), 1)
+		}
+
+		if armazenamento.registrosVitorias[0] != jogador {
+			t.Errorf("não registrou o vencedor corretamente, recebi '%s', esperava '%s'", armazenamento.registrosVitorias[0], jogador)
+		}
+	})
+}
+
+func TestRegistrarVitoriasEBuscarEstasVitorias(t *testing.T) {
+	armazenamento := NovoArmazenamentoJogadorEmMemoria()
+	servidor := ServidorJogador{armazenamento}
+	jogador := "Maria"
+
+	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
+	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
+	servidor.ServeHTTP(httptest.NewRecorder(), novaRequisicaoRegistrarVitoriaPost(jogador))
+
+	resposta := httptest.NewRecorder()
+	servidor.ServeHTTP(resposta, novaRequisicaoObterPontuacao(jogador))
+
+	assert.Equal(t, resposta.Code, http.StatusOK)
+	//verificarCorpoRequisicao(t, resposta.Body.String(), "3")
+	assert.Equal(t, resposta.Body.String(), "3")
 
 }
